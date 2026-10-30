@@ -3,17 +3,82 @@
 #include <curses.h>
 #include <math.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #ifdef _WIN32
-#include <stdio.h>
 #include <windows.h>
 extern BOOL WINAPI GetCurrentConsoleFont(HANDLE hConsoleOutput, BOOL bMaximumWindow, PCONSOLE_FONT_INFO lpConsoleCurrentFont);
 #else
 #include <sys/ioctl.h>
 #include <unistd.h>
 #endif
+
+static bool sync_output_enabled = false;
+static bool sync_output_active = false;
+
+bool stdout_directed_to_console(void);
+
+bool term_supports_sync_output(void)
+{
+    if (!stdout_directed_to_console())
+    {
+        return false;
+    }
+
+#ifdef _WIN32
+    return false;
+#else
+    const char *term = getenv("TERM");
+    if (term != NULL && (strcmp(term, "dumb") == 0 || strcmp(term, "linux") == 0))
+    {
+        return false;
+    }
+
+    if (getenv("KITTY_WINDOW_ID") != NULL)
+    {
+        return true;
+    }
+
+    const char *term_program = getenv("TERM_PROGRAM");
+    if (term_program != NULL && (strstr(term_program, "kitty") != NULL || strstr(term_program, "WezTerm") != NULL ||
+                                 strstr(term_program, "ghostty") != NULL || strstr(term_program, "iTerm") != NULL ||
+                                 strstr(term_program, "Alacritty") != NULL || strstr(term_program, "contour") != NULL))
+    {
+        return true;
+    }
+
+    if (term != NULL && (strstr(term, "kitty") != NULL || strstr(term, "ghostty") != NULL || strstr(term, "wezterm") != NULL ||
+                         strstr(term, "alacritty") != NULL || strstr(term, "foot") != NULL || strstr(term, "contour") != NULL ||
+                         strstr(term, "256color") != NULL || strstr(term, "direct") != NULL))
+    {
+        return true;
+    }
+
+    return false;
+#endif
+}
+
+void term_sync_begin(void)
+{
+    if (sync_output_enabled && !sync_output_active)
+    {
+        fputs("\x1b[?2026h", stdout);
+        fflush(stdout);
+        sync_output_active = true;
+    }
+}
+
+void term_sync_end(void)
+{
+    if (sync_output_enabled && sync_output_active)
+    {
+        fputs("\x1b[?2026l", stdout);
+        fflush(stdout);
+        sync_output_active = false;
+    }
+}
 
 void ncurses_init(bool color)
 {
@@ -23,6 +88,8 @@ void ncurses_init(bool color)
     cbreak();    // Disable line buffering
     curs_set(0); // Make cursor invisible
     timeout(0);  // Non-blocking read for getch
+
+    sync_output_enabled = term_supports_sync_output();
 
     // Set the console output code page to UTF-8 on Windows
 #ifdef _WIN32
@@ -55,6 +122,7 @@ void ncurses_init(bool color)
 
 void ncurses_kill(void)
 {
+    term_sync_end();
     endwin();
 }
 

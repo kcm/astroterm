@@ -149,6 +149,7 @@ int main(int argc, char *argv[])
 
         if (perform_resize)
         {
+            term_sync_begin();
             resize_ncurses();
             resize_main(main_win, &config);
             if (config.metadata)
@@ -156,6 +157,7 @@ int main(int argc, char *argv[])
                 resize_meta(metadata_win);
             }
             doupdate();
+            term_sync_end();
 
             perform_resize = false;
         }
@@ -201,13 +203,15 @@ int main(int argc, char *argv[])
             break;
         }
 
-        // Use double buffering to avoid flickering while updating
+        // Use double buffering and DECSET 2026 synchronized output to avoid flickering while updating
+        term_sync_begin();
         wnoutrefresh(main_win);
         if (config.metadata)
         {
             wnoutrefresh(metadata_win);
         }
         doupdate();
+        term_sync_end();
 
         // TODO: this timing scheme *should* minimize any drift or divergence
         // between simulation time and realtime. Check this to make sure.
