@@ -297,6 +297,22 @@ void test_elapsed_time_to_components(void)
     TEST_ASSERT_EQUAL(30, seconds);
 }
 
+void test_star_spectral_and_color_mapping(void)
+{
+    // First BSC5 star (HR 1) has spectral type A1 -> 'A'
+    TEST_ASSERT_EQUAL_CHAR('A', star_table[0].spectral_type);
+    // Vega (HR 7001) has spectral type A0 -> 'A'
+    TEST_ASSERT_EQUAL_CHAR('A', star_table[7000].spectral_type);
+    // Arcturus (HR 5340) has spectral type K1.5 -> 'K'
+    TEST_ASSERT_EQUAL_CHAR('K', star_table[5339].spectral_type);
+
+    int pair_o_bright = get_star_color_pair('O', 0.5f);
+    int pair_o_faint = get_star_color_pair('O', 5.5f);
+    int pair_m_bright = get_star_color_pair('M', 0.5f);
+    TEST_ASSERT_TRUE(pair_o_bright < pair_o_faint);
+    TEST_ASSERT_NOT_EQUAL(pair_o_bright, pair_m_bright);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -311,6 +327,7 @@ int main(void)
     RUN_TEST(test_map_float_to_int_range);
     RUN_TEST(test_string_to_time);
     RUN_TEST(test_elapsed_time_to_components);
+    RUN_TEST(test_star_spectral_and_color_mapping);
 
     return UNITY_END();
 }

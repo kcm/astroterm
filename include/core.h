@@ -52,6 +52,7 @@ struct Star
     double ra_motion;
     double dec_motion;
     float magnitude;
+    char spectral_type;
 };
 
 struct Planet
@@ -152,5 +153,10 @@ bool string_to_time(const char *string, struct tm *time);
  * results are stored in the provided integer pointers.
  */
 void elapsed_time_to_components(double elapsed_days, int *years, int *days, int *hours, int *minutes, int *seconds);
+
+/* Map a star's Harvard spectral class ('O', 'B', 'A', 'F', 'G', 'K', 'M') and
+ * apparent magnitude to an extended ncurses color pair index.
+ */
+int get_star_color_pair(char spectral_type, float magnitude);
 
 #endif // CORE_H

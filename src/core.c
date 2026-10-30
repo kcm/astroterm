@@ -3,12 +3,71 @@
 #include "astro.h"
 #include "parse_BSC5.h"
 #include "strptime.h"
+#include "term.h"
 
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+static int spectral_class_index(char spectral_type)
+{
+    switch (spectral_type)
+    {
+    case 'O':
+    case 'o':
+    case 'W':
+        return 0;
+    case 'B':
+    case 'b':
+        return 1;
+    case 'A':
+    case 'a':
+        return 2;
+    case 'F':
+    case 'f':
+        return 3;
+    case 'G':
+    case 'g':
+        return 4;
+    case 'K':
+    case 'k':
+        return 5;
+    case 'M':
+    case 'm':
+    case 'C':
+    case 'N':
+    case 'R':
+    case 'S':
+        return 6;
+    default:
+        return 2; // Default to A (white) if unknown
+    }
+}
+
+int get_star_color_pair(char spectral_type, float magnitude)
+{
+    int spec_idx = spectral_class_index(spectral_type);
+    int tier;
+    if (magnitude <= 1.5f)
+    {
+        tier = 0; // Bright
+    }
+    else if (magnitude <= 3.0f)
+    {
+        tier = 1; // Mid
+    }
+    else if (magnitude <= 4.5f)
+    {
+        tier = 2; // Dim
+    }
+    else
+    {
+        tier = 3; // Faint
+    }
+    return STAR_COLOR_PAIR_BASE + spec_idx * NUM_BRIGHTNESS_TIERS + tier;
+}
 
 // Data generation
 
@@ -32,6 +91,7 @@ bool generate_star_table(struct Star **star_table_out, struct Entry *entries, co
         temp_star.ra_motion = (double)entries[i].XRPM;
         temp_star.dec_motion = (double)entries[i].XDPM;
         temp_star.magnitude = entries[i].MAG / 100.0f;
+        temp_star.spectral_type = entries[i].IS[0];
 
         // Star magnitude mapping
         // FIXME: some of these characters render on WSL while not on macOS
@@ -52,7 +112,7 @@ bool generate_star_table(struct Star **star_table_out, struct Entry *entries, co
         int symbol_index = map_float_to_int_range(min_magnitude, max_magnitude, 0, 9, temp_star.magnitude);
 
         temp_star.base = (struct ObjectBase){
-            .color_pair = 0,
+            .color_pair = get_star_color_pair(temp_star.spectral_type, temp_star.magnitude),
             .symbol_ASCII = (char)mag_map_round_ASCII[symbol_index],
             .symbol_unicode = mag_map_unicode_round[symbol_index],
             .label = name_table[i].name,

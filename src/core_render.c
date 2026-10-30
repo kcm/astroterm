@@ -163,6 +163,10 @@ void render_constellation(WINDOW *win, const struct Conf *config, struct Constel
         // sure why?
         // FIXME: this logic is super verbose/long (any way to cut it down?)
         // FIXME: this clipping doesn't seem to work or no-unicode for some reason?
+        if (config->color)
+        {
+            wattron(win, COLOR_PAIR(CONSTELL_COLOR_PAIR));
+        }
         if (config->unicode)
         {
             if (config->braille)
@@ -194,6 +198,11 @@ void render_constellation(WINDOW *win, const struct Conf *config, struct Constel
                 mvwaddch(win, yb, xb, '+');
             }
         }
+    }
+
+    if (config->color)
+    {
+        wattroff(win, COLOR_PAIR(CONSTELL_COLOR_PAIR));
     }
 }
 
@@ -258,6 +267,11 @@ int compare_angles(const void *a, const void *b)
 void render_azimuthal_grid(WINDOW *win, const struct Conf *config)
 {
     const double to_rad = M_PI / 180.0;
+
+    if (config->color)
+    {
+        wattron(win, COLOR_PAIR(GRID_COLOR_PAIR));
+    }
 
     int height, width;
     getmaxyx(win, height, width);
@@ -337,6 +351,11 @@ void render_azimuthal_grid(WINDOW *win, const struct Conf *config)
     //     // draw_ellipse(win, win->_maxy/2, win->_maxx/2, 20, 20,
     //     ascii); angle += inc;
     // }
+
+    if (config->color)
+    {
+        wattroff(win, COLOR_PAIR(GRID_COLOR_PAIR));
+    }
 }
 
 void render_cardinal_directions(WINDOW *win, const struct Conf *config)
