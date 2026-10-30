@@ -3,6 +3,7 @@
 #include "core_position.h"
 #include "core_render.h"
 #include "data/keplerian_elements.h"
+#include "kitty_render.h"
 #include "macros.h"
 #include "parse_BSC5.h"
 #include "stopwatch.h"
@@ -70,6 +71,7 @@ int main(int argc, char *argv[])
         .grid = false,
         .constell = false,
         .metadata = false,
+        .kitty = false,
     };
 
     // Parse command line args and convert to internal representations
@@ -136,6 +138,8 @@ int main(int argc, char *argv[])
         resize_meta(metadata_win);
     }
 
+    struct KittyCanvas kitty_canvas = {0};
+
     // Render loop
     while (true)
     {
@@ -167,27 +171,37 @@ int main(int argc, char *argv[])
             werase(main_win);
         }
 
-        // Update object positions
-        update_star_positions(star_table, num_stars, julian_date, config.latitude, config.longitude);
+        // Update object positions (culling stars fainter than threshold)
+        update_star_positions_threshold(star_table, num_stars, julian_date, config.latitude, config.longitude,
+                                        config.threshold);
         update_planet_positions(planet_table, julian_date, config.latitude, config.longitude);
         update_moon_position(&moon_object, julian_date, config.latitude, config.longitude);
         update_moon_phase(&moon_object, julian_date, config.latitude);
 
         // Render objects
-        render_stars_stereo(main_win, &config, star_table, num_stars, num_by_mag);
-        if (config.constell)
+        if (config.kitty)
         {
-            render_constells(main_win, &config, &constell_table, num_const, star_table);
-        }
-        render_planets_stereo(main_win, &config, planet_table);
-        render_moon_stereo(main_win, &config, moon_object);
-        if (config.grid)
-        {
-            render_azimuthal_grid(main_win, &config);
+            config.julian_date = julian_date;
+            render_kitty_frame(&kitty_canvas, main_win, &config, star_table, num_stars, num_by_mag, constell_table, num_const,
+                               planet_table, moon_object);
         }
         else
         {
-            render_cardinal_directions(main_win, &config);
+            render_stars_stereo(main_win, &config, star_table, num_stars, num_by_mag);
+            if (config.constell)
+            {
+                render_constells(main_win, &config, &constell_table, num_const, star_table);
+            }
+            render_planets_stereo(main_win, &config, planet_table);
+            render_moon_stereo(main_win, &config, moon_object);
+            if (config.grid)
+            {
+                render_azimuthal_grid(main_win, &config);
+            }
+            else
+            {
+                render_cardinal_directions(main_win, &config);
+            }
         }
 
         // Render metadata
@@ -236,6 +250,11 @@ int main(int argc, char *argv[])
     }
 
     // Clean up
+    if (config.kitty)
+    {
+        kitty_clear_images();
+        kitty_canvas_free(&kitty_canvas);
+    }
 
     ncurses_kill();
 
@@ -244,6 +263,7 @@ int main(int argc, char *argv[])
     free_planets(planet_table, NUM_PLANETS);
     free_moon_object(moon_object);
     free_star_names(name_table, num_stars);
+    free(num_by_mag);
 
     return EXIT_SUCCESS;
 }
@@ -284,9 +304,9 @@ void parse_options(int argc, char *argv[], struct Conf *config)
 #include "arg_definitions.h"
     struct arg_end *end = arg_end(20);
 
-    void *argtable[] = {latitude_arg, longitude_arg, datetime_arg,    threshold_arg, label_arg,   fps_arg,  speed_arg,
-                        color_arg,    constell_arg,  grid_arg,        unicode_arg,   braille_arg, quit_arg, meta_arg,
-                        ratio_arg,    help_arg,      completions_arg, city_arg,      version_arg, end};
+    void *argtable[] = {latitude_arg, longitude_arg, datetime_arg, threshold_arg,   label_arg,   fps_arg,     speed_arg,
+                        color_arg,    constell_arg,  grid_arg,     unicode_arg,     braille_arg, kitty_arg,   quit_arg,
+                        meta_arg,     ratio_arg,     help_arg,     completions_arg, city_arg,    version_arg, end};
 
     int nerrors = arg_parse(argc, argv, argtable);
 
@@ -440,6 +460,11 @@ void parse_options(int argc, char *argv[], struct Conf *config)
     if (braille_arg->count > 0)
     {
         config->braille = true;
+    }
+
+    if (kitty_arg->count > 0)
+    {
+        config->kitty = true;
     }
 
     if (quit_arg->count > 0)

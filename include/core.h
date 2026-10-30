@@ -30,6 +30,7 @@ struct Conf
     bool grid;
     bool constell;
     bool metadata;
+    bool kitty;
 };
 
 // All information pertinent to rendering a celestial body
@@ -37,7 +38,10 @@ struct ObjectBase
 {
     double azimuth; // Coordinates used for rendering
     double altitude;
-    int color_pair; // 0 indicates no color pair
+    double radius_polar; // Cached stereographic polar radius
+    double theta_polar;  // Cached stereographic polar angle
+    bool proj_valid;     // True if polar coordinates are valid for current position
+    int color_pair;      // 0 indicates no color pair
     char symbol_ASCII;
     const char *symbol_unicode;
     const char *label;
@@ -52,6 +56,7 @@ struct Star
     double ra_motion;
     double dec_motion;
     float magnitude;
+    char spectral_type;
 };
 
 struct Planet
@@ -152,5 +157,10 @@ bool string_to_time(const char *string, struct tm *time);
  * results are stored in the provided integer pointers.
  */
 void elapsed_time_to_components(double elapsed_days, int *years, int *days, int *hours, int *minutes, int *seconds);
+
+/* Map a star's Harvard spectral class ('O', 'B', 'A', 'F', 'G', 'K', 'M') and
+ * apparent magnitude to an extended ncurses color pair index.
+ */
+int get_star_color_pair(char spectral_type, float magnitude);
 
 #endif // CORE_H

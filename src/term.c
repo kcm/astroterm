@@ -117,6 +117,52 @@ void ncurses_init(bool color)
         init_pair(6, COLOR_MAGENTA, -1);
         init_pair(7, COLOR_CYAN, -1);
         init_pair(8, COLOR_WHITE, -1);
+
+        // Extended 256-color palette for spectral star classes & magnitude shading
+        // Spectral classes: O, B, A, F, G, K, M (7 classes x 4 brightness tiers)
+        static const short spectral_256[NUM_SPECTRAL_CLASSES][NUM_BRIGHTNESS_TIERS] = {
+            {159, 117, 68, 240},  // O: Blue
+            {195, 153, 110, 242}, // B: Blue-white
+            {231, 253, 247, 241}, // A: White
+            {230, 229, 187, 241}, // F: Yellow-white
+            {227, 221, 179, 240}, // G: Yellow
+            {215, 209, 173, 239}, // K: Orange
+            {203, 167, 131, 239}, // M: Red-orange
+        };
+
+        // 8-color ANSI fallback for terminals with < 256 colors
+        static const short spectral_8[NUM_SPECTRAL_CLASSES] = {
+            COLOR_CYAN,   // O
+            COLOR_CYAN,   // B
+            COLOR_WHITE,  // A
+            COLOR_WHITE,  // F
+            COLOR_YELLOW, // G
+            COLOR_YELLOW, // K
+            COLOR_RED,    // M
+        };
+
+        bool use_256 = (COLORS >= 256 && COLOR_PAIRS >= 40);
+        for (int s = 0; s < NUM_SPECTRAL_CLASSES; ++s)
+        {
+            for (int b = 0; b < NUM_BRIGHTNESS_TIERS; ++b)
+            {
+                short pair_id = (short)(STAR_COLOR_PAIR_BASE + s * NUM_BRIGHTNESS_TIERS + b);
+                if (pair_id < COLOR_PAIRS)
+                {
+                    short fg = use_256 ? spectral_256[s][b] : spectral_8[s];
+                    init_pair(pair_id, fg, -1);
+                }
+            }
+        }
+
+        if (CONSTELL_COLOR_PAIR < COLOR_PAIRS)
+        {
+            init_pair(CONSTELL_COLOR_PAIR, use_256 ? 60 : COLOR_BLUE, -1);
+        }
+        if (GRID_COLOR_PAIR < COLOR_PAIRS)
+        {
+            init_pair(GRID_COLOR_PAIR, use_256 ? 240 : COLOR_BLUE, -1);
+        }
     }
 }
 
@@ -203,6 +249,48 @@ bool stdout_directed_to_console(void)
     return (isatty(fileno(stdout)) != 0);
 
 #endif // _WIN32
+}
+
+bool term_is_kitty(void)
+{
+    if (getenv("KITTY_WINDOW_ID") != NULL)
+    {
+        return true;
+    }
+    const char *term = getenv("TERM");
+    if (term != NULL && (strstr(term, "kitty") != NULL || strstr(term, "ghostty") != NULL))
+    {
+        return true;
+    }
+    const char *term_program = getenv("TERM_PROGRAM");
+    if (term_program != NULL && (strstr(term_program, "kitty") != NULL || strstr(term_program, "ghostty") != NULL ||
+                                 strstr(term_program, "WezTerm") != NULL))
+    {
+        return true;
+    }
+    return false;
+}
+
+bool term_pixel_size(int *ypixel, int *xpixel)
+{
+    if (!stdout_directed_to_console())
+    {
+        return false;
+    }
+#if defined(_WIN32)
+    (void)ypixel;
+    (void)xpixel;
+    return false;
+#else
+    struct winsize ws;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) != 0 || ws.ws_ypixel == 0 || ws.ws_xpixel == 0)
+    {
+        return false;
+    }
+    *ypixel = (int)ws.ws_ypixel;
+    *xpixel = (int)ws.ws_xpixel;
+    return true;
+#endif
 }
 
 float get_cell_aspect_ratio(void)

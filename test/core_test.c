@@ -213,6 +213,27 @@ void test_update_star_positions(void)
     TEST_ASSERT_DOUBLE_WITHIN(S_EPSILON, 0.440355, star_table[5339].base.altitude);
 }
 
+void test_update_star_positions_threshold(void)
+{
+    double julian_date = 2459146.0;
+    double latitude = 42.3601 * M_PI / 180;
+    double longitude = -71.0589 * M_PI / 180;
+
+    update_star_positions_threshold(star_table, num_stars, julian_date, latitude, longitude, 2.0f);
+
+    // Vega (mag 0.03) and Arcturus (mag -0.05) should be updated and projected
+    TEST_ASSERT_TRUE(star_table[7000].base.proj_valid);
+    TEST_ASSERT_DOUBLE_WITHIN(S_EPSILON, 0.547246, star_table[7000].base.azimuth);
+    TEST_ASSERT_DOUBLE_WITHIN(S_EPSILON, 0.0, star_table[7000].base.altitude);
+
+    TEST_ASSERT_TRUE(star_table[5339].base.proj_valid);
+    TEST_ASSERT_DOUBLE_WITHIN(S_EPSILON, 1.511414, star_table[5339].base.azimuth);
+    TEST_ASSERT_DOUBLE_WITHIN(S_EPSILON, 0.440355, star_table[5339].base.altitude);
+
+    // HR 1 (mag 6.7 > 2.0) should be culled
+    TEST_ASSERT_FALSE(star_table[0].base.proj_valid);
+}
+
 void test_update_planet_positions(void)
 {
     double julian_date = 2459146.0; // 2020 October 23 12:00:00.0 UT1
@@ -297,6 +318,22 @@ void test_elapsed_time_to_components(void)
     TEST_ASSERT_EQUAL(30, seconds);
 }
 
+void test_star_spectral_and_color_mapping(void)
+{
+    // First BSC5 star (HR 1) has spectral type A1 -> 'A'
+    TEST_ASSERT_EQUAL_CHAR('A', star_table[0].spectral_type);
+    // Vega (HR 7001) has spectral type A0 -> 'A'
+    TEST_ASSERT_EQUAL_CHAR('A', star_table[7000].spectral_type);
+    // Arcturus (HR 5340) has spectral type K1.5 -> 'K'
+    TEST_ASSERT_EQUAL_CHAR('K', star_table[5339].spectral_type);
+
+    int pair_o_bright = get_star_color_pair('O', 0.5f);
+    int pair_o_faint = get_star_color_pair('O', 5.5f);
+    int pair_m_bright = get_star_color_pair('M', 0.5f);
+    TEST_ASSERT_TRUE(pair_o_bright < pair_o_faint);
+    TEST_ASSERT_NOT_EQUAL(pair_o_bright, pair_m_bright);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -306,11 +343,13 @@ int main(void)
     RUN_TEST(test_generate_constell_table);
     RUN_TEST(test_star_numbers_by_magnitude);
     RUN_TEST(test_update_star_positions);
+    RUN_TEST(test_update_star_positions_threshold);
     RUN_TEST(test_update_planet_positions);
     RUN_TEST(test_update_moon_position);
     RUN_TEST(test_map_float_to_int_range);
     RUN_TEST(test_string_to_time);
     RUN_TEST(test_elapsed_time_to_components);
+    RUN_TEST(test_star_spectral_and_color_mapping);
 
     return UNITY_END();
 }
