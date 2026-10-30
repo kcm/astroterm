@@ -165,8 +165,9 @@ int main(int argc, char *argv[])
             werase(main_win);
         }
 
-        // Update object positions
-        update_star_positions(star_table, num_stars, julian_date, config.latitude, config.longitude);
+        // Update object positions (culling stars fainter than threshold)
+        update_star_positions_threshold(star_table, num_stars, julian_date, config.latitude, config.longitude,
+                                        config.threshold);
         update_planet_positions(planet_table, julian_date, config.latitude, config.longitude);
         update_moon_position(&moon_object, julian_date, config.latitude, config.longitude);
         update_moon_phase(&moon_object, julian_date, config.latitude);
@@ -240,6 +241,7 @@ int main(int argc, char *argv[])
     free_planets(planet_table, NUM_PLANETS);
     free_moon_object(moon_object);
     free_star_names(name_table, num_stars);
+    free(num_by_mag);
 
     return EXIT_SUCCESS;
 }

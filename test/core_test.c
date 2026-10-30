@@ -213,6 +213,27 @@ void test_update_star_positions(void)
     TEST_ASSERT_DOUBLE_WITHIN(S_EPSILON, 0.440355, star_table[5339].base.altitude);
 }
 
+void test_update_star_positions_threshold(void)
+{
+    double julian_date = 2459146.0;
+    double latitude = 42.3601 * M_PI / 180;
+    double longitude = -71.0589 * M_PI / 180;
+
+    update_star_positions_threshold(star_table, num_stars, julian_date, latitude, longitude, 2.0f);
+
+    // Vega (mag 0.03) and Arcturus (mag -0.05) should be updated and projected
+    TEST_ASSERT_TRUE(star_table[7000].base.proj_valid);
+    TEST_ASSERT_DOUBLE_WITHIN(S_EPSILON, 0.547246, star_table[7000].base.azimuth);
+    TEST_ASSERT_DOUBLE_WITHIN(S_EPSILON, 0.0, star_table[7000].base.altitude);
+
+    TEST_ASSERT_TRUE(star_table[5339].base.proj_valid);
+    TEST_ASSERT_DOUBLE_WITHIN(S_EPSILON, 1.511414, star_table[5339].base.azimuth);
+    TEST_ASSERT_DOUBLE_WITHIN(S_EPSILON, 0.440355, star_table[5339].base.altitude);
+
+    // HR 1 (mag 6.7 > 2.0) should be culled
+    TEST_ASSERT_FALSE(star_table[0].base.proj_valid);
+}
+
 void test_update_planet_positions(void)
 {
     double julian_date = 2459146.0; // 2020 October 23 12:00:00.0 UT1
@@ -306,6 +327,7 @@ int main(void)
     RUN_TEST(test_generate_constell_table);
     RUN_TEST(test_star_numbers_by_magnitude);
     RUN_TEST(test_update_star_positions);
+    RUN_TEST(test_update_star_positions_threshold);
     RUN_TEST(test_update_planet_positions);
     RUN_TEST(test_update_moon_position);
     RUN_TEST(test_map_float_to_int_range);
